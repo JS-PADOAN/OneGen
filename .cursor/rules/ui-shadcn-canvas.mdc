@@ -1,0 +1,38 @@
+---
+description: UI conventions — shadcn Base UI, canvas dark theme, node styling
+globs: components/**/*.tsx,app/**/*.tsx,app/globals.css,hooks/**/*.ts
+alwaysApply: false
+---
+
+# UI conventions
+
+## Two visual systems
+
+1. **App chrome** (sidebar, settings, gallery, sheets): shadcn **base-nova** + `@base-ui/react`, semantic tokens, `cn()` from `lib/utils.ts`. Follow `.agents/skills/shadcn/` when adding/editing shadcn components (`pnpm dlx shadcn@latest`).
+2. **Workflow nodes / canvas**: custom dark design system in `app/globals.css` (`.node-card`, handles, accents). Prefer those classes over forcing shadcn Cards inside nodes.
+
+## Canvas look (established)
+
+- Page/canvas background ~`#0B0E14` / black; nodes `#141820`.
+- Accents per node type from `NODE_META` (teal image gen, green text, orange image input, etc.).
+- Icons: `lucide-react`. Motion: `motion/react` where already used.
+
+```tsx
+// ❌ BAD — generic card inside a node
+<Card><CardContent>...</CardContent></Card>
+
+// ✅ GOOD — node shell
+<div className="node-card">...</div>
+```
+
+## shadcn / Base UI
+
+- Compose existing `components/ui/*` before inventing primitives.
+- Base UI uses `render` (not Radix `asChild`) for custom triggers — see shadcn skill `base-vs-radix.md`.
+- Prefer `flex` + `gap-*` over `space-y-*`. Use `cn()` for conditional classes.
+- Toasts in this app use the custom `Toaster` / store toasts — do not assume `sonner` is wired unless already imported.
+
+## Client boundaries
+
+- Interactive canvas, modals, sidebar controls: `"use client"`.
+- Keep server Components in `app/` layouts/pages when they only read cookies/metadata.

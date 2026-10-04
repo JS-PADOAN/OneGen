@@ -1,0 +1,37 @@
+---
+description: HeliosGen core architecture — local desktop app, stack, non-negotiables
+alwaysApply: true
+---
+
+# HeliosGen — Core
+
+Local-only desktop AI workflow builder (image/video). Package name: `heliosgen`.
+
+## Architecture (do not fight it)
+
+```
+Tauri 2 shell → Node sidecar (Next.js standalone) → SQLite + disk media
+```
+
+- **No cloud accounts, Supabase, R2, webhooks, or hosted deploy.** All data is local.
+- User is always `GUEST_USER_ID` (`"guest"`) from `lib/guestMode.ts`.
+- Media URLs are `/generated/...`; bytes live in `MEDIA_DIR` (`lib/guest/paths.ts`).
+- Workflows: Zustand (`lib/store.ts`) + SQLite sync (`lib/useSpaceSync.ts` / `/api/workflows`).
+- Generations: kie.ai (poller), optional Azure / Codex CLI — see `lib/providers.ts`.
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| UI | Next.js 16 + React 19 + TypeScript, Tailwind 4, shadcn (base-nova / Base UI) |
+| Canvas | `@xyflow/react` + Zustand |
+| Desktop | Tauri 2 (`src-tauri/`), docs in `DESKTOP.md` |
+| Package manager | **pnpm** (`packageManager: pnpm@9.15.9`) |
+
+## Non-negotiables
+
+1. **Next.js may differ from training data.** Prefer guides under `node_modules/next/dist/docs/` when present; heed deprecations (`AGENTS.md`).
+2. **Do not reintroduce cloud auth, Supabase, or public callback URLs.** Desktop uses `lib/kieJobPoller.ts` + `lib/kieUpload.ts`.
+3. **Legacy names `r2Url` / `mirrorToR2` / `ensureR2` mean local disk** (`lib/storage.ts`). Keep names; do not rename call sites casually.
+4. **Aliases:** `@/*` → repo root. Server code may use Node APIs; mark interactive UI with `"use client"`.
+5. Prefer extending existing modules (`modelConfig`, `executor`, `guest/db`, node components) over parallel systems.

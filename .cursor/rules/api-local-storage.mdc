@@ -1,0 +1,40 @@
+---
+description: Next.js API routes — guest SQLite, jobs, kie upload, local media
+globs: app/api/**/*.ts,lib/guest/**/*.ts,lib/storage.ts,lib/kieJobPoller.ts,lib/kieUpload.ts,lib/jobStore.ts,lib/jobEvents.ts,app/generated/**/*.ts
+alwaysApply: false
+---
+
+# API & local storage
+
+## Data layer
+
+- SQLite: `lib/guest/sqlite.ts` + `lib/guest/db.ts` (generations, uploads, folders, settings, hashes).
+- Workflows: `lib/guest/spaces.ts` via `/api/workflows`.
+- Paths: `DATA_DIR` / `MEDIA_DIR` from env (`HELIOS_*`) or repo defaults — never hardcode absolute OS paths.
+- Serve media with `app/generated/[...path]/route.ts`; reject `..` / path traversal.
+
+## Auth model
+
+```typescript
+import { GUEST_USER_ID } from "@/lib/guestMode";
+// Always key DB rows by GUEST_USER_ID — no session/JWT.
+```
+
+## Generation flow
+
+1. Create task (kie / Azure / Codex) in `/api/generate` or `/api/generate-video`.
+2. Insert generation row + `jobStore.set(taskId, { status: "pending", ... })`.
+3. For kie: `pollKieJob(taskId, apiKey, kind)` — **not** webhooks.
+4. Client watches `/api/job-status` or `/api/job-stream` (SSE / events via `jobEvents`).
+5. On settle: mirror output with `mirrorToR2` / `uploadBuffer` → update guest DB + jobStore.
+
+## Desktop-specific constraints
+
+- Local/data-URL images must go through `ensureKieReachableImages` / `lib/kieUpload.ts` before calling kie.
+- Long outbound HTTPS from route handlers: prefer raw `https.request` helpers (see `/api/generate`) — Next patched `fetch` can abort when the response commits.
+- Resume pollers on restart via `resumeKieJob` from job-status/stream routes.
+- Veo uses a different kie API shape; do not assume the standard poller covers it without checking.
+
+## Keys
+
+- Prefer Settings → SQLite (`getKieTokenForUser` / `getAzureKeyForUser`). Env (`KIE_API_KEY`, `AZURE_API_KEY`) is optional fallback only.

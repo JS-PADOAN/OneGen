@@ -1,0 +1,38 @@
+---
+description: React Flow nodes, Zustand store, pipeline execution conventions
+globs: components/nodes/**/*.tsx,components/WorkflowCanvas.tsx,components/edges/**/*.tsx,lib/store.ts,lib/executor.ts,lib/usePipelineRunner.ts,lib/nodeTypes.tsx,lib/workflowSyncBus.ts,lib/useSpaceSync.ts
+alwaysApply: false
+---
+
+# Workflow canvas
+
+## Ownership
+
+| Concern | Module |
+|---|---|
+| Graph state (spaces, nodes, edges) | `lib/store.ts` → `useWorkflowStore` |
+| Input resolution / topo / waves | `lib/executor.ts` |
+| Pipeline run orchestration | `lib/usePipelineRunner.ts` |
+| Node registry (picker, sizes, seed settings) | `lib/nodeTypes.tsx` |
+| Canvas shell + `nodeTypes` map | `components/WorkflowCanvas.tsx` |
+| Persist to SQLite | `lib/useSpaceSync.ts` + `requestWorkflowSync()` |
+
+## Node types (canonical)
+
+`promptNode` · `imageInputNode` · `videoInputNode` · `generateNode` · `videoGeneratorNode` · `assistantNode` · `commentNode` · `groupNode`
+
+- Register new types in **all** of: `nodeTypes` map, `NODES` / `NODE_META` / `NODE_SIZE`, and `getNodeLabel` in the store.
+- Generation nodes that participate in pipelines: `generateNode` | `videoGeneratorNode` only.
+
+## Patterns
+
+- Nodes are `"use client"`; read/write via `useWorkflowStore` + `updateNodeData(id, partial)`.
+- Resolve upstream inputs with `resolveInputs(nodeId, nodes, edges)` — honour handle-specific frames (`startFrameOut` / `endFrameOut` / `imagePickOut`).
+- Durable media field: `r2Url` (local `/generated/...`). Session-only: `inputImage` (data URL). Prefer `r2Url` when present.
+- Status: `idle` | `pending` | `running` | `done` | `error`. Pipeline uses `pendingGenerate` / `pipelineQueued`.
+- Discrete edits (add/delete/connect/resize-end): call `requestWorkflowSync()`. Continuous (drag/type): rely on debounce — do not spam sync.
+
+## UI on nodes
+
+- Use `.node-card` / `.node-header` / shared classes from `app/globals.css` and helpers (`GenerateButton`, `NodeActionBar`, `CornerResizer`, `MissingInputWarning`).
+- Accent colors come from `NODE_META` in `lib/nodeTypes.tsx`.

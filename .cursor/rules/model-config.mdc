@@ -1,0 +1,38 @@
+---
+description: Adding or changing image/video models and provider routing
+globs: lib/modelConfig.ts,lib/providers.ts,lib/models.ts,app/api/generate/**,app/api/generate-video/**,app/api/generate-image/**
+alwaysApply: false
+---
+
+# Model config
+
+`lib/modelConfig.ts` is the **single source of truth** for image/video models.
+
+## Add a model
+
+1. Add an entry to `IMAGE_MODELS` or `VIDEO_MODELS` with `id`, `apiId`, `name`, `provider`, ratios/caps, and `apiInput` mapping.
+2. Stop. UI dropdowns and generate routes derive from this file — do not hardcode model lists in nodes or API routes.
+
+```typescript
+// ❌ BAD — hardcode in GenerateNode
+const MODELS = [{ id: "foo", name: "Foo" }];
+
+// ✅ GOOD — already done in GenerateNode
+const MODELS = IMAGE_MODELS.map((m) => ({ id: m.id, name: m.name, meta: m.provider }));
+```
+
+## Providers
+
+- Default backend: **kie.ai**. Per-model overrides: `lib/providers.ts` (`kie` | `azure` | `codex`).
+- Azure / Codex are image-only; use `azureSizeMap` / related fields on the model entry when Azure applies.
+- Task IDs: kie = opaque; Azure/Codex = prefixed `azure-…` / `codex-…`. Never poll kie for those (`lib/kieJobPoller.ts`).
+
+## API payload mapping
+
+- Build kie input from `apiInput` keys (`aspectRatioKey`, `imageInputKey`, `qualityKey`, `extra`, …).
+- Honour `textOnlyApiId` when there are no reference images.
+- Respect `promptMaxLength` / `textOnlyPromptMaxLength` and `maxImages`.
+
+## Assistant LLM models
+
+Text assistant models live in `lib/models.ts` (`MODEL_GROUPS`) — separate from image/video `modelConfig`.

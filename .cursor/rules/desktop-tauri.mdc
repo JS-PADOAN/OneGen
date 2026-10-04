@@ -1,0 +1,31 @@
+---
+description: Tauri desktop packaging, sidecar, and data dirs
+globs: src-tauri/**,scripts/desktop/**,DESKTOP.md,next.config.ts
+alwaysApply: false
+---
+
+# Desktop (Tauri)
+
+Canonical docs: `DESKTOP.md`. Read it before changing packaging.
+
+## Runtime shape
+
+- Packaged app: Tauri picks a loopback port, spawns `helios-node` sidecar → Node runs standalone Next server.
+- Env set by shell: `HELIOS_DATA_DIR`, `HELIOS_MEDIA_DIR` (and node bin path for the shim).
+- Dev: `pnpm desktop:dev` → `next dev` + `tauri dev` (no sidecar; `HELIOS_DEV_URL`).
+- Build: `pnpm desktop:build` (runs version check + `DESKTOP_BUILD=1` standalone via `scripts/desktop/build-server.mjs`).
+
+## Rules
+
+1. **`output: "standalone"` only when `DESKTOP_BUILD=1`** — do not force standalone for normal `next build` without checking `next.config.ts`.
+2. **Do not rely on nft/pnpm traced `node_modules`** for the bundle — `build-server.mjs` stages a clean install under `src-tauri/server/`.
+3. Keep `serverExternalPackages` / `outputFileTracingIncludes` for `sharp` and excludes for `src-tauri/**`.
+4. Sidecar Dock-tile workaround lives in `src-tauri/loader/` — do not replace with launching Node directly from `MacOS/`.
+5. Fixed loopback port (~41730) preserves webview `localStorage` across launches — changing it is a data-compat decision.
+6. Signing/notarization: `scripts/desktop/sign.env` + entitlements in `src-tauri/entitlements.plist` (Node/V8 needs JIT-related entitlements).
+
+## Commands
+
+- Dev: `pnpm desktop:dev`
+- Package: `pnpm desktop:build`
+- Icons: `pnpm desktop:icon` / `tauri icon`
